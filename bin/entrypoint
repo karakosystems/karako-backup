@@ -1,0 +1,23 @@
+#!/bin/sh
+set -eu
+
+: "${BACKUP_HOST:?BACKUP_HOST is required}"
+: "${RESTIC_REPOSITORY:?RESTIC_REPOSITORY is required}"
+[ -n "${RESTIC_PASSWORD:-}${RESTIC_PASSWORD_FILE:-}" ] || { echo "RESTIC_PASSWORD or RESTIC_PASSWORD_FILE is required"; exit 1; }
+
+case "${1:-cron}" in
+  cron)
+    export -p > /etc/karako-backup.env
+    echo "${BACKUP_SCHEDULE:-30 4 * * *} . /etc/karako-backup.env && karako-backup > /proc/1/fd/1 2>&1" > /etc/crontabs/root
+    if [ "${BACKUP_ON_START:-true}" = true ]; then
+      karako-backup > /proc/1/fd/1 2>&1 &
+    fi
+    exec crond -f -l 8
+    ;;
+  backup)
+    exec karako-backup
+    ;;
+  *)
+    exec "$@"
+    ;;
+esac

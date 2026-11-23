@@ -1,0 +1,9 @@
+.git
+.hadolint.yaml
+.github
+*.md
+LICENSE
+example/
+test/
+release/
+lefthook.yml

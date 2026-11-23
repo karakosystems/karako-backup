@@ -1,0 +1,44 @@
+#!/bin/sh
+set -u
+
+STATE=${BACKUP_STATE_DIR:-/state}
+LOCK=/tmp/karako-backup.lock
+LOG="$STATE/last.log"
+
+mkdir -p "$STATE"
+if ! mkdir "$LOCK" 2> /dev/null; then
+  echo "another backup is running"
+  exit 0
+fi
+trap 'rmdir "$LOCK"' EXIT
+
+started=$(date -u +%s)
+karako-backup-run > "$LOG" 2>&1
+rc=$?
+cat "$LOG"
+duration="$(( $(date -u +%s) - started ))s"
+
+notify() {
+  [ -n "${DISCORD_WEBHOOK_URL:-}" ] || return 0
+  curl -fsS -m 20 -H 'Content-Type: application/json' -d "$1" "$DISCORD_WEBHOOK_URL" > /dev/null \
+    || echo "discord notification failed"
+}
+
+if [ "$rc" -eq 0 ]; then
+  if [ "${BACKUP_NOTIFY_SUCCESS:-true}" = true ]; then
+    snapshot=$(grep ' karako-backup ' "$LOG" | tail -n 1 | awk '{print $1 " (" $(NF-1) " " $NF ")"}')
+    dumps=$(grep -c ' dumped ' "$LOG" || true)
+    notify "$(jq -n --arg host "$BACKUP_HOST" --arg snap "$snapshot" --arg dumps "$dumps" --arg time "$duration" \
+      '{username: "karako-backup", embeds: [{title: ("Backup succeeded on " + $host), color: 3066993, fields: [
+        {name: "Snapshot", value: $snap, inline: true},
+        {name: "Database dumps", value: $dumps, inline: true},
+        {name: "Duration", value: $time, inline: true}]}]}')"
+  fi
+else
+  tail_log=$(tail -n 15 "$LOG" | cut -c1-180)
+  notify "$(jq -n --arg host "$BACKUP_HOST" --arg rc "$rc" --arg log "$tail_log" --arg time "$duration" \
+    '{username: "karako-backup", content: "@here", embeds: [{title: ("Backup FAILED on " + $host), color: 15158332,
+      description: ("Exit code " + $rc + " after " + $time + "\n```\n" + $log + "\n```")}]}')"
+fi
+
+exit "$rc"
