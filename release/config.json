@@ -4,8 +4,7 @@
     ".": {
       "release-type": "simple",
       "package-name": "karako-backup",
-      "changelog-path": "CHANGELOG.md",
-      "release-as": "1.0.0"
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }
