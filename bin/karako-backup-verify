@@ -1,0 +1,69 @@
+#!/bin/sh
+# shellcheck shell=busybox
+set -euo pipefail
+
+DUMPS=${BACKUP_DUMPS_DIR:-/dumps}
+ERRORS=$(mktemp)
+failed=0
+
+log() { echo "$(date -u +%FT%TZ) $*"; }
+
+user_tables() {
+  docker exec "$1" psql -U postgres -AtX -c "SELECT datname FROM pg_database WHERE NOT datistemplate" \
+    | while read -r db; do
+        docker exec "$1" psql -U postgres -AtX -d "$db" -c "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE c.relkind IN ('r', 'p') AND n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg_toast%'"
+      done | awk '{ s += $1 } END { print s + 0 }'
+}
+
+# The official image restarts the server once its init scripts are done, so readiness alone can be the temporary one.
+wait_ready() {
+  for _ in $(seq 1 120); do
+    docker logs "$1" 2>&1 | grep -q 'PostgreSQL init process complete' \
+      && docker exec "$1" pg_isready -U postgres > /dev/null 2>&1 && return 0
+    sleep 2
+  done
+  return 1
+}
+
+verify() {
+  name=$1 image=$2 server="karako-verify-$1"
+  docker rm -f "$server" > /dev/null 2>&1 || true
+  docker run -d --name "$server" --label karako-backup.skip=true --network none \
+    --cpus "${BACKUP_VERIFY_CPUS:-1}" --memory "${BACKUP_VERIFY_MEMORY:-2g}" \
+    -e POSTGRES_HOST_AUTH_METHOD=trust "$image" > /dev/null
+  if ! wait_ready "$server"; then
+    log "restore test of $name failed: the server did not start"
+    docker rm -f "$server" > /dev/null
+    return 1
+  fi
+
+  restic dump --host "$BACKUP_HOST" latest "$DUMPS/$name.sql" \
+    | docker exec -i "$server" psql -U postgres -qX > /dev/null 2> "$ERRORS" || true
+  expected=$(grep -cE '^CREATE (UNLOGGED )?TABLE ' "$DUMPS/$name.sql" || true)
+  restored=$(user_tables "$server")
+  docker rm -f "$server" > /dev/null
+
+  # pg_dumpall --clean recreates the roles and databases a fresh server already has.
+  unexpected=$(grep 'ERROR:' "$ERRORS" \
+    | grep -vE 'role "[^"]+" already exists|current user cannot be dropped|database "(postgres|template1)" already exists' \
+    | head -n 5 || true)
+  if [ -n "$unexpected" ] || [ "$restored" -ne "$expected" ]; then
+    log "restore test of $name failed: $restored of $expected tables restored"
+    [ -z "$unexpected" ] || echo "$unexpected"
+    return 1
+  fi
+  log "verified $name: $restored tables restored"
+}
+
+for marker in "$DUMPS"/*.image; do
+  [ -e "$marker" ] || continue
+  name=$(basename "$marker" .image)
+  image=$(cat "$marker")
+  case "$image" in
+    *postgres*|*pgvector*|*postgis*) verify "$name" "$image" || failed=1 ;;
+  esac
+done
+
+rm -f "$ERRORS"
+exit "$failed"

@@ -6,7 +6,9 @@ Daily encrypted backups of a Docker host, as one container. Every night it:
 2. snapshots the dumps and every Docker volume with [restic](https://restic.net), skipping the raw data directories of
    those databases and of caches (Redis, Valkey, KeyDB, Dragonfly);
 3. applies the retention policy and, once a week, reads back a sample of the repository;
-4. posts the result to Discord.
+4. once a week, restores every Postgres dump from the repository into a throwaway server with the same image and no
+   network, and fails unless every table comes back;
+5. posts the result to Discord.
 
 Dumps are written uncompressed: restic compresses them and stores only what changed since the previous run, so
 frequent backups of a large database stay small.
@@ -42,6 +44,8 @@ The container needs the Docker socket to find and dump the databases, and reads 
 | `BACKUP_KEEP_DAILY`, `BACKUP_KEEP_WEEKLY`, `BACKUP_KEEP_MONTHLY` | `7`, `4`, `6` | Retention |
 | `BACKUP_CHECK_WEEKDAY` | `7` | ISO weekday of the integrity check, `7` for Sunday |
 | `BACKUP_CHECK_SUBSET` | `5%` | Share of the repository data read back by the check |
+| `BACKUP_VERIFY_WEEKDAY` | `7` | ISO weekday of the restore test, `0` never runs it |
+| `BACKUP_VERIFY_CPUS`, `BACKUP_VERIFY_MEMORY` | `1`, `2g` | Limits of the throwaway Postgres server |
 | `BACKUP_EXTRA_PATHS` | | Space-separated paths backed up besides the volumes, when they exist |
 | `BACKUP_EXCLUDES` | | Space-separated paths or globs left out |
 | `BACKUP_SKIP_UNUSED_VOLUMES` | `false` | `true` leaves out the volumes no container uses |
@@ -57,6 +61,7 @@ The health check turns the container unhealthy when no backup succeeded in the l
 ```sh
 docker exec <container> karako-backup
 docker exec <container> restic snapshots
+docker exec <container> karako-backup-verify
 docker exec <container> restic restore latest --target /tmp/restore --include /dumps/<container>.sql
 ```
 
