@@ -40,7 +40,13 @@ for id in $(docker ps -q); do
   esac
 done
 
+set -f
 for path in ${BACKUP_EXCLUDES:-}; do echo "$path" >> "$EXCLUDES"; done
+set +f
+
+if [ "${BACKUP_SKIP_UNUSED_VOLUMES:-false}" = true ]; then
+  docker volume ls -q --filter dangling=true | sed "s|^|$VOLUMES/|" >> "$EXCLUDES"
+fi
 
 paths="$DUMPS"
 for path in "$VOLUMES" ${BACKUP_EXTRA_PATHS:-}; do

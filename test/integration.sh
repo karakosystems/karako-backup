@@ -28,7 +28,7 @@ docker exec "$P-pg" psql -U app -d app -c "CREATE TABLE marker (v text); INSERT 
 docker exec "$P-maria" mariadb -uroot -pci -e "CREATE DATABASE shop; CREATE TABLE shop.marker (v text); INSERT INTO shop.marker VALUES ('maria-marker-42');"
 
 run() {
-  docker run --rm \
+  docker run --rm -e BACKUP_SKIP_UNUSED_VOLUMES -e BACKUP_EXCLUDES \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v /var/lib/docker/volumes:/var/lib/docker/volumes:ro \
     -v "$P-repo:/repo" \
@@ -55,5 +55,8 @@ run sh -c "restic dump latest /dumps/$P-maria.sql.gz | gzip -dc" | grep -q maria
 run backup > /dev/null
 run backup > /dev/null
 [ "$(run restic snapshots --json | jq length)" = 2 ] || fail "retention kept more than the newest and the oldest snapshot of the day"
+
+(export BACKUP_SKIP_UNUSED_VOLUMES=true BACKUP_EXCLUDES="/var/lib/docker/volumes/*-nothing"; run backup > /dev/null)
+run restic ls latest | grep -q "/var/lib/docker/volumes/$P-files/" && fail "unused volume was backed up"
 
 echo "integration suite passed"
