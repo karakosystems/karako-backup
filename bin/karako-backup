@@ -24,8 +24,17 @@ notify() {
     || echo "discord notification failed"
 }
 
+success_due() {
+  case "${BACKUP_NOTIFY_SUCCESS:-true}" in
+    true) return 0 ;;
+    daily) grep -q ' restore test$' "$LOG" || [ "$(cat "$STATE/last-notify" 2> /dev/null)" != "$(date -u +%F)" ] ;;
+    *) return 1 ;;
+  esac
+}
+
 if [ "$rc" -eq 0 ]; then
-  if [ "${BACKUP_NOTIFY_SUCCESS:-true}" = true ]; then
+  if success_due; then
+    date -u +%F > "$STATE/last-notify"
     snapshot=$(grep ' karako-backup ' "$LOG" | tail -n 1 | awk '{print $1 " (" $(NF-1) " " $NF ")"}')
     dumps=$(grep -c ' dumped ' "$LOG" || true)
     restore=$(grep -q ' restore test$' "$LOG" && echo "$(grep -c ' verified ' "$LOG" || true) database(s) restored" || echo "not due")

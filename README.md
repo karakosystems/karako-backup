@@ -50,7 +50,7 @@ The container needs the Docker socket to find and dump the databases, and reads 
 | `BACKUP_EXCLUDES` | | Space-separated paths or globs left out |
 | `BACKUP_SKIP_UNUSED_VOLUMES` | `false` | `true` leaves out the volumes no container uses |
 | `DISCORD_WEBHOOK_URL` | | Discord webhook that receives every result; a failure mentions `@here` |
-| `BACKUP_NOTIFY_SUCCESS` | `true` | `false` posts failures only |
+| `BACKUP_NOTIFY_SUCCESS` | `true` | `false` posts failures only, `daily` the first success of each day and every restore test |
 
 A container labelled `karako-backup.skip=true` is never dumped.
 
