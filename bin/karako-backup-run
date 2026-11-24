@@ -9,15 +9,16 @@ started=$(date -u +%s)
 
 log() { echo "$(date -u +%FT%TZ) $*"; }
 
+# Left uncompressed: restic deduplicates and compresses plain dumps, a gzip stream changes entirely every run.
 dump() {
-  out="$DUMPS/$1.sql.gz"
-  docker exec "$2" sh -c "$3" | gzip > "$out"
-  [ "$(gzip -dc "$out" | head -c 64 | wc -c)" -gt 0 ] || { log "empty dump for $1"; exit 1; }
+  out="$DUMPS/$1.sql"
+  docker exec "$2" sh -c "$3" > "$out"
+  [ "$(head -c 64 "$out" | wc -c)" -gt 0 ] || { log "empty dump for $1"; exit 1; }
   log "dumped $1 ($(wc -c < "$out") bytes)"
 }
 
 mkdir -p "$DUMPS"
-rm -f "$DUMPS"/*.sql.gz
+rm -f "$DUMPS"/*.sql "$DUMPS"/*.sql.gz
 
 docker inspect -f '{{range .Mounts}}{{if eq .Type "volume"}}{{.Name}}{{"\n"}}{{end}}{{end}}' "$(hostname)" 2> /dev/null \
   | sed '/^$/d' | sed "s|^|$VOLUMES/|" >> "$EXCLUDES" || true
