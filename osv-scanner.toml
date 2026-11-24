@@ -1,0 +1,9 @@
+[[IgnoredVulns]]
+id = "GO-2026-6859"
+ignoreUntil = 2027-02-24
+reason = "net/http server crash in the docker CLI binary; the image runs no HTTP server"
+
+[[IgnoredVulns]]
+id = "GO-2026-5932"
+ignoreUntil = 2027-02-24
+reason = "x/crypto/openpgp advisory in the restic binary; restic does not use openpgp"

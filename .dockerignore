@@ -7,3 +7,4 @@ example/
 test/
 release/
 lefthook.yml
+osv-scanner.toml

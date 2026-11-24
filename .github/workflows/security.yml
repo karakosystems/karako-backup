@@ -49,7 +49,7 @@ jobs:
         run: |
           docker build -t backup:scan .
           docker save backup:scan -o image.tar
-          osv-scanner scan image --archive image.tar
+          osv-scanner scan image --config osv-scanner.toml --archive image.tar
 
   workflows:
     runs-on: ubuntu-latest
