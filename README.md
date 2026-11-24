@@ -19,7 +19,8 @@ docker compose -f example/compose.yaml up -d
 
 [`example/compose.yaml`](example/compose.yaml) fits any Docker host. [`example/coolify.yaml`](example/coolify.yaml) is
 the same stack as a Coolify service: it also backs up `/data/coolify` (compose files, environment, proxy certificates)
-without the local database backups Coolify already keeps.
+without what Coolify rebuilds on its own: local database backups, Sentinel metrics, image scans, proxy logs and the
+vulnerability database of its image scanner.
 
 The container needs the Docker socket to find and dump the databases, and reads the volumes from
 `/var/lib/docker/volumes` read-only.
@@ -38,7 +39,8 @@ The container needs the Docker socket to find and dump the databases, and reads 
 | `BACKUP_CHECK_WEEKDAY` | `7` | ISO weekday of the integrity check, `7` for Sunday |
 | `BACKUP_CHECK_SUBSET` | `5%` | Share of the repository data read back by the check |
 | `BACKUP_EXTRA_PATHS` | | Space-separated paths backed up besides the volumes, when they exist |
-| `BACKUP_EXCLUDES` | | Space-separated paths left out |
+| `BACKUP_EXCLUDES` | | Space-separated paths or globs left out |
+| `BACKUP_SKIP_UNUSED_VOLUMES` | `false` | `true` leaves out the volumes no container uses |
 | `DISCORD_WEBHOOK_URL` | | Discord webhook that receives every result; a failure mentions `@here` |
 | `BACKUP_NOTIFY_SUCCESS` | `true` | `false` posts failures only |
 
