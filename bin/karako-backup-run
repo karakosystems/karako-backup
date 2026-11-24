@@ -65,12 +65,18 @@ log "forget"
 restic forget --quiet --host "$BACKUP_HOST" --prune --keep-hourly "${BACKUP_KEEP_HOURLY:-0}" \
   --keep-daily "${BACKUP_KEEP_DAILY:-7}" --keep-weekly "${BACKUP_KEEP_WEEKLY:-4}" --keep-monthly "${BACKUP_KEEP_MONTHLY:-6}"
 
-if [ "$(date -u +%u)" = "${BACKUP_CHECK_WEEKDAY:-7}" ]; then
+STATE=${BACKUP_STATE_DIR:-/state}
+due_today() {
+  [ "$(date -u +%u)" = "$2" ] && [ "$(cat "$STATE/last-$1" 2> /dev/null)" != "$(date -u +%F)" ]
+}
+
+if due_today check "${BACKUP_CHECK_WEEKDAY:-7}"; then
   log "check"
   restic check --read-data-subset="${BACKUP_CHECK_SUBSET:-5%}"
+  date -u +%F > "$STATE/last-check"
 fi
 
 restic snapshots --host "$BACKUP_HOST" --latest 1 --compact
 rm -f "$EXCLUDES"
-date -u +%FT%TZ > "${BACKUP_STATE_DIR:-/state}/last-success"
+date -u +%FT%TZ > "$STATE/last-success"
 log "done in $(( $(date -u +%s) - started ))s"
