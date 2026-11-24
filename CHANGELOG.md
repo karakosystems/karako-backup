@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/karakosystems/karako-backup/compare/karako-backup-v1.0.0...karako-backup-v1.1.0) (2026-11-24)
+
+
+### Features
+
+* skip the volumes no container uses when BACKUP_SKIP_UNUSED_VOLUMES is set ([8b5ad0b](https://github.com/karakosystems/karako-backup/commit/8b5ad0b0316efc8314adde493ac5aaf0b52cf712))
+
 ## 1.0.0 (2026-11-24)
 
 
