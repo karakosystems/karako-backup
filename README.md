@@ -38,6 +38,7 @@ The container needs the Docker socket to find and dump the databases, and reads 
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | | Credentials of an S3 repository; other backends use their own restic variables |
 | `BACKUP_SCHEDULE` | `30 4 * * *` | Cron expression, UTC |
 | `BACKUP_ON_START` | `true` | Run a backup when the container starts |
+| `BACKUP_KEEP_HOURLY` | `0` | Hourly snapshots kept, for a schedule that runs several times a day |
 | `BACKUP_KEEP_DAILY`, `BACKUP_KEEP_WEEKLY`, `BACKUP_KEEP_MONTHLY` | `7`, `4`, `6` | Retention |
 | `BACKUP_CHECK_WEEKDAY` | `7` | ISO weekday of the integrity check, `7` for Sunday |
 | `BACKUP_CHECK_SUBSET` | `5%` | Share of the repository data read back by the check |
