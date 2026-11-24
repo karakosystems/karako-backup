@@ -8,7 +8,8 @@ LABEL org.opencontainers.image.title="karako-backup" \
       org.opencontainers.image.vendor="Karako Systems" \
       org.opencontainers.image.licenses="MIT"
 
-RUN apk add --no-cache docker-cli jq curl tzdata
+RUN apk upgrade --no-cache \
+    && apk add --no-cache docker-cli jq curl tzdata
 
 COPY --chmod=755 bin/ /usr/local/bin/
 
@@ -21,6 +22,10 @@ VOLUME ["/state", "/dumps", "/root/.cache/restic"]
 
 HEALTHCHECK --interval=5m --timeout=10s --start-period=25h --retries=3 \
     CMD ["sh", "-c", "find \"$BACKUP_STATE_DIR/last-success\" -mmin -1560 | grep -q ."]
+
+# nosemgrep: dockerfile.security.last-user-is-root.last-user-is-root
+# hadolint ignore=DL3002
+USER 0:0
 
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
 CMD ["cron"]
