@@ -39,17 +39,17 @@ run() {
 run backup
 listing=$(run restic ls latest)
 
-echo "$listing" | grep -q "/dumps/$P-pg.sql.gz" || fail "postgres dump missing"
-echo "$listing" | grep -q "/dumps/$P-maria.sql.gz" || fail "mariadb dump missing"
+echo "$listing" | grep -q "/dumps/$P-pg.sql" || fail "postgres dump missing"
+echo "$listing" | grep -q "/dumps/$P-maria.sql" || fail "mariadb dump missing"
 echo "$listing" | grep -q "/var/lib/docker/volumes/$P-files/_data/hello.txt" || fail "volume file missing"
-echo "$listing" | grep -q "/dumps/$P-skip.sql.gz" && fail "skipped container was dumped"
+echo "$listing" | grep -q "/dumps/$P-skip.sql" && fail "skipped container was dumped"
 echo "$listing" | grep -q "/var/lib/docker/volumes/$P-repo/" && fail "repository volume was backed up"
 
 pg_volume=$(docker inspect -f '{{range .Mounts}}{{.Name}}{{end}}' "$P-pg")
 echo "$listing" | grep -q "/var/lib/docker/volumes/$pg_volume/" && fail "raw postgres volume was backed up"
 
-run sh -c "restic dump latest /dumps/$P-pg.sql.gz | gzip -dc" | grep -q pg-marker-42 || fail "postgres marker not restored"
-run sh -c "restic dump latest /dumps/$P-maria.sql.gz | gzip -dc" | grep -q maria-marker-42 || fail "mariadb marker not restored"
+run restic dump latest "/dumps/$P-pg.sql" | grep -q pg-marker-42 || fail "postgres marker not restored"
+run restic dump latest "/dumps/$P-maria.sql" | grep -q maria-marker-42 || fail "mariadb marker not restored"
 [ "$(run restic dump latest "/var/lib/docker/volumes/$P-files/_data/hello.txt")" = hello ] || fail "volume file not restored"
 
 run backup > /dev/null

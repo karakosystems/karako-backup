@@ -8,6 +8,9 @@ Daily encrypted backups of a Docker host, as one container. Every night it:
 3. applies the retention policy and, once a week, reads back a sample of the repository;
 4. posts the result to Discord.
 
+Dumps are written uncompressed: restic compresses them and stores only what changed since the previous run, so
+frequent backups of a large database stay small.
+
 The repository can be any restic backend: S3, SFTP, B2, a local path. Its content is encrypted with `RESTIC_PASSWORD`;
 losing that password loses the backups.
 
@@ -53,14 +56,14 @@ The health check turns the container unhealthy when no backup succeeded in the l
 ```sh
 docker exec <container> karako-backup
 docker exec <container> restic snapshots
-docker exec <container> restic restore latest --target /tmp/restore --include /dumps/<container>.sql.gz
+docker exec <container> restic restore latest --target /tmp/restore --include /dumps/<container>.sql
 ```
 
 ## Restore a database
 
 ```sh
-restic dump latest /dumps/<container>.sql.gz | gunzip | docker exec -i <postgres> psql -U postgres
-restic dump latest /dumps/<container>.sql.gz | gunzip | docker exec -i <mariadb> mariadb -uroot -p<password>
+restic dump latest /dumps/<container>.sql | docker exec -i <postgres> psql -U postgres
+restic dump latest /dumps/<container>.sql | docker exec -i <mariadb> mariadb -uroot -p<password>
 ```
 
 ## License
