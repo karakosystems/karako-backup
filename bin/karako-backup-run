@@ -14,11 +14,12 @@ dump() {
   out="$DUMPS/$1.sql"
   docker exec "$2" sh -c "$3" > "$out"
   [ "$(head -c 64 "$out" | wc -c)" -gt 0 ] || { log "empty dump for $1"; exit 1; }
+  docker inspect -f '{{.Config.Image}}' "$2" > "$DUMPS/$1.image"
   log "dumped $1 ($(wc -c < "$out") bytes)"
 }
 
 mkdir -p "$DUMPS"
-rm -f "$DUMPS"/*.sql "$DUMPS"/*.sql.gz
+rm -f "$DUMPS"/*.sql "$DUMPS"/*.sql.gz "$DUMPS"/*.image
 
 docker inspect -f '{{range .Mounts}}{{if eq .Type "volume"}}{{.Name}}{{"\n"}}{{end}}{{end}}' "$(hostname)" 2> /dev/null \
   | sed '/^$/d' | sed "s|^|$VOLUMES/|" >> "$EXCLUDES" || true
@@ -74,6 +75,12 @@ if due_today check "${BACKUP_CHECK_WEEKDAY:-7}"; then
   log "check"
   restic check --read-data-subset="${BACKUP_CHECK_SUBSET:-5%}"
   date -u +%F > "$STATE/last-check"
+fi
+
+if due_today verify "${BACKUP_VERIFY_WEEKDAY:-7}"; then
+  log "restore test"
+  karako-backup-verify
+  date -u +%F > "$STATE/last-verify"
 fi
 
 restic snapshots --host "$BACKUP_HOST" --latest 1 --compact

@@ -5,7 +5,7 @@ IMAGE=${1:-karako-backup:ci}
 P=kbtest
 
 cleanup() {
-  docker rm -f "$P-pg" "$P-maria" "$P-skip" > /dev/null 2>&1 || true
+  docker rm -f "$P-pg" "$P-maria" "$P-skip" "karako-verify-$P-pg" > /dev/null 2>&1 || true
   docker volume rm "$P-files" "$P-repo" > /dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -28,7 +28,7 @@ docker exec "$P-pg" psql -U app -d app -c "CREATE TABLE marker (v text); INSERT 
 docker exec "$P-maria" mariadb -uroot -pci -e "CREATE DATABASE shop; CREATE TABLE shop.marker (v text); INSERT INTO shop.marker VALUES ('maria-marker-42');"
 
 run() {
-  docker run --rm -e BACKUP_SKIP_UNUSED_VOLUMES -e BACKUP_EXCLUDES \
+  docker run --rm -e BACKUP_SKIP_UNUSED_VOLUMES -e BACKUP_EXCLUDES -e BACKUP_VERIFY_WEEKDAY="${BACKUP_VERIFY_WEEKDAY:-0}" \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v /var/lib/docker/volumes:/var/lib/docker/volumes:ro \
     -v "$P-repo:/repo" \
@@ -36,7 +36,8 @@ run() {
     "$IMAGE" "$@"
 }
 
-run backup
+log=$(BACKUP_VERIFY_WEEKDAY=$(date -u +%u) run backup)
+echo "$log" | grep -q "verified $P-pg: 1 tables restored" || fail "postgres restore test did not pass"
 listing=$(run restic ls latest)
 
 echo "$listing" | grep -q "/dumps/$P-pg.sql" || fail "postgres dump missing"

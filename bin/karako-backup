@@ -28,11 +28,13 @@ if [ "$rc" -eq 0 ]; then
   if [ "${BACKUP_NOTIFY_SUCCESS:-true}" = true ]; then
     snapshot=$(grep ' karako-backup ' "$LOG" | tail -n 1 | awk '{print $1 " (" $(NF-1) " " $NF ")"}')
     dumps=$(grep -c ' dumped ' "$LOG" || true)
-    notify "$(jq -n --arg host "$BACKUP_HOST" --arg snap "$snapshot" --arg dumps "$dumps" --arg time "$duration" \
+    restore=$(grep -q ' restore test$' "$LOG" && echo "$(grep -c ' verified ' "$LOG" || true) database(s) restored" || echo "not due")
+    notify "$(jq -n --arg host "$BACKUP_HOST" --arg snap "$snapshot" --arg dumps "$dumps" --arg time "$duration" --arg restore "$restore" \
       '{username: "karako-backup", embeds: [{title: ("Backup succeeded on " + $host), color: 3066993, fields: [
         {name: "Snapshot", value: $snap, inline: true},
         {name: "Database dumps", value: $dumps, inline: true},
-        {name: "Duration", value: $time, inline: true}]}]}')"
+        {name: "Duration", value: $time, inline: true},
+        {name: "Restore test", value: $restore, inline: true}]}]}')"
   fi
 else
   tail_log=$(tail -n 15 "$LOG" | cut -c1-180)
